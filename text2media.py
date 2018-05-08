@@ -133,7 +133,7 @@ def combine_fragments():
             raise
     return out 
 
-file_text = open(in_file,encoding='utf-8').read()
+file_text = open(in_file,encoding='utf-8').read()+"."
 sentences = split_into_sentences(file_text)
 for i,s in enumerate(sentences):
     text_to_mp4(s, i)
