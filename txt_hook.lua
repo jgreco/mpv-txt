@@ -1,6 +1,10 @@
 local utils = require 'mp.utils'
 local msg = require 'mp.msg'
-local options = require 'mp.options'
+
+local opts = {
+    threads = 4,
+}
+(require 'mp.options').read_options(opts)
 
 local function exec(args)
     local ret = utils.subprocess({args = args})
@@ -22,7 +26,7 @@ mp.add_hook("on_load", 10, function ()
         return
     end
 
-    stat,out = exec({text2media_py, "--threads", 4,   url})
+    stat,out = exec({text2media_py, "--cleanup", "--threads", opts.threads,   url})
     mp.set_property("stream-open-filename", out:gsub("\n", ""))
     return
 end)
