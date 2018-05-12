@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 import re, sys,os
 from subprocess import call, check_output
+from multiprocessing import Pool
+
+THREADS=2
 
 #shamelessly ripped/adapted from https://stackoverflow.com/questions/4576077/python-split-text-on-sentences/31505798#31505798
 #this could be made a lot better
@@ -43,23 +46,19 @@ def split_into_sentences(text):
     sentences = [s.strip() for s in sentences]
     return sentences
 
-if len(sys.argv) != 3:
-    sys.exit("wrong args: text2media.py project-name input.txt")
-project=sys.argv[1]
-in_file=sys.argv[2]
-project_dir="/tmp/mpv-txt/"+project
-os.makedirs(project_dir, exist_ok=True)
 
-def say(text):
-    #try `say` first because quality is better, fall back on `espeak`
+#try `say` first because quality is better, fall back on `espeak`
+def say(text,fragment):
     try:
-        call(["say", "..."+text, "-o", project_dir+"/tts.aiff"])
-        return project_dir+"/tts.aiff"
+        out = project_dir+"/tts-"+str(fragment)+".aiff"
+        call(["say", "..."+text, "-o", out])
+        return out
     except OSError as e:
         if e.errno == os.errno.ENOENT:
             try:
-                call(["espeak", "-w", project_dir+"/tts.wav", "..."+text ])
-                return project_dir+"/tts.wav"
+                out = project_dir+"/tts-"+str(fragment)+".wav"
+                call(["espeak", "-w", out, "..."+text ])
+                return out
             except OSError as e:
                 if e.errno == os.errno.ENOENT:
                     sys.exit("text2media.py requires either `say` (OSX) or `espeak` to be in your PATH.")
@@ -69,12 +68,16 @@ def say(text):
                 raise
 
 
-def text_to_mp4(text, fragment):
+def text_to_mp4(fragment_text):
+    fragment = fragment_text[0]
+    text = fragment_text[1]
     out=project_dir+"/"+project+"-"+str(fragment)+".mp4"
+
     if os.path.isfile(out):
-        return
+        return out
+
     #create TTS audio
-    audio_file = say(text)
+    audio_file = say(text, fragment)
 
     #create SRT
     try:
@@ -92,7 +95,8 @@ def text_to_mp4(text, fragment):
         else:
             raise
 
-    with open(project_dir+"/tts.srt", "w+") as srt:
+    srt_file = project_dir+"/tts-"+str(fragment)+".srt"
+    with open(srt_file, "w+") as srt:
         srt.write("1\n")
         srt.write("00:00:00.000 --> " + audio_len + "\n")
         srt.write(text)
@@ -101,23 +105,26 @@ def text_to_mp4(text, fragment):
     try:
         call(["ffmpeg", "-v", "quiet",
             "-i", audio_file,
-            "-i",  project_dir+"/tts.srt",
+            "-i",  srt_file,
             "-c:a", "mp3", "-c:s", "mov_text", out])
+        os.remove(srt_file)
+        os.remove(audio_file)
     except OSError as e:
         if e.errno == os.errno.ENOENT:
             sys.exit("text2media.py requires ffmpeg to be in your PATH.")
         else:
             raise
 
-    #add sentence mp4 to the fragment list
-    with open(project_dir+"/fragments.txt", "a+")  as fragments:
-        fragments.write("file '"+out+"'\n")
+    return out
 
-
-def combine_fragments():
+def combine_fragments(fragments):
     out=project_dir+"/"+project+".mp4"
     if os.path.isfile(out):
         return out
+
+    with open(project_dir+"/fragments.txt", "w") as fragment_list:
+        for f in fragments:
+            fragment_list.write("file '%s'\n" % f)
     try:
         call(["ffmpeg", "-v", "quiet",
             "-safe", "0",
@@ -133,8 +140,16 @@ def combine_fragments():
             raise
     return out 
 
+if len(sys.argv) != 3:
+    sys.exit("wrong args: text2media.py project-name input.txt")
+project=sys.argv[1]
+in_file=sys.argv[2]
+project_dir="/tmp/mpv-txt/"+project
+os.makedirs(project_dir, exist_ok=True)
+
 file_text = open(in_file,encoding='utf-8').read()+"."
 sentences = split_into_sentences(file_text)
-for i,s in enumerate(sentences):
-    text_to_mp4(s, i)
-print(combine_fragments())
+with Pool(THREADS) as pool:
+    fragments = pool.map(text_to_mp4, [(i,s) for i,s in enumerate(sentences)])
+
+print(combine_fragments(fragments))
