@@ -30,16 +30,30 @@ def split_into_sentences(text):
     text = re.sub(" "+suffixes+"[.]"," \\1<prd>",text)
     text = re.sub(" " + caps + "[.]"," \\1<prd>",text)
     text = re.sub(digits + "[.]" + digits,"\\1<prd>\\2",text)
-    if "”" in text: text = text.replace(".”","”.")
-    if ")" in text: text = text.replace(".)",").")
-    if "]" in text: text = text.replace(".]","].")
-    if "'" in text: text = text.replace(".'","'.")
+
     if "\"" in text: text = text.replace(".\"","\".")
     if "!" in text: text = text.replace("!\"","\"!")
     if "?" in text: text = text.replace("?\"","\"?")
+
+    if "”" in text: text = text.replace(".”","”.")
+    if "”" in text: text = text.replace("!”","”!")
+    if "”" in text: text = text.replace("?”","”?")
+
+    if ")" in text: text = text.replace(".)",").")
+    if ")" in text: text = text.replace("!)",")!")
+    if ")" in text: text = text.replace("?)",")?")
+
+    if "]" in text: text = text.replace(".]","].")
+    if "]" in text: text = text.replace("!]","]!")
+    if "]" in text: text = text.replace("?]","]?")
+
+    if "'" in text: text = text.replace(".'","'.")
+    if "'" in text: text = text.replace("!'","'!")
+    if "'" in text: text = text.replace("?'","'?")
+
     text = text.replace(".",".<stop>")
-    text = text.replace("?","?<stop>")
     text = text.replace("!","!<stop>")
+    text = text.replace("?","?<stop>")
     text = text.replace("<prd>",".")
     sentences = text.split("<stop>")
     sentences = sentences[:-1]
