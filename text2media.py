@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, sys,os
+import re, sys, os, argparse, shutil
 from subprocess import call, check_output
 from multiprocessing import Pool
-
-THREADS=2
 
 #shamelessly ripped/adapted from https://stackoverflow.com/questions/4576077/python-split-text-on-sentences/31505798#31505798
 #this could be made a lot better
@@ -64,13 +62,13 @@ def split_into_sentences(text):
 #try `say` first because quality is better, fall back on `espeak`
 def say(text,fragment):
     try:
-        out = project_dir+"/tts-"+str(fragment)+".aiff"
+        out = project+"/tts-"+str(fragment)+".aiff"
         call(["say", "..."+text, "-o", out])
         return out
     except OSError as e:
         if e.errno == os.errno.ENOENT:
             try:
-                out = project_dir+"/tts-"+str(fragment)+".wav"
+                out = project+"/tts-"+str(fragment)+".wav"
                 call(["espeak", "-w", out, "..."+text ])
                 return out
             except OSError as e:
@@ -85,7 +83,7 @@ def say(text,fragment):
 def text_to_mp4(fragment_text):
     fragment = fragment_text[0]
     text = fragment_text[1]
-    out=project_dir+"/"+project+"-"+str(fragment)+".mp4"
+    out=project+"/"+basename+"-"+str(fragment)+".mp4"
 
     if os.path.isfile(out):
         return out
@@ -109,7 +107,7 @@ def text_to_mp4(fragment_text):
         else:
             raise
 
-    srt_file = project_dir+"/tts-"+str(fragment)+".srt"
+    srt_file = project+"/tts-"+str(fragment)+".srt"
     with open(srt_file, "w+") as srt:
         srt.write("1\n")
         srt.write("00:00:00.000 --> " + audio_len + "\n")
@@ -129,21 +127,23 @@ def text_to_mp4(fragment_text):
         else:
             raise
 
+    if not os.path.isabs(project):
+        return basename+"-"+str(fragment)+".mp4"
     return out
 
 def combine_fragments(fragments):
-    out=project_dir+"/"+project+".mp4"
+    out = args.output if args.output else project+"/"+basename+".mp4"
     if os.path.isfile(out):
         return out
 
-    with open(project_dir+"/fragments.txt", "w") as fragment_list:
+    with open(project+"/fragments.txt", "w") as fragment_list:
         for f in fragments:
             fragment_list.write("file '%s'\n" % f)
     try:
         call(["ffmpeg", "-v", "quiet",
             "-safe", "0",
             "-f", "concat",
-            "-i", project_dir+"/fragments.txt",
+            "-i", project+"/fragments.txt",
             "-c", "copy",
             "-c:s", "mov_text",
             out])
@@ -154,16 +154,30 @@ def combine_fragments(fragments):
             raise
     return out 
 
-if len(sys.argv) != 3:
-    sys.exit("wrong args: text2media.py project-name input.txt")
-project=sys.argv[1]
-in_file=sys.argv[2]
-project_dir="/tmp/mpv-txt/"+project
-os.makedirs(project_dir, exist_ok=True)
+ap = argparse.ArgumentParser()
+ap.add_argument("input_file", type=str, help="text file to process")
+ap.add_argument("-t", "--threads", type=int, default=1, help="number of threads to use for TTS")
+ap.add_argument("-o", "--output", type=str, help="specify the output path/name")
+ap.add_argument("-p", "--project_directory", type=str, help="override the project directory (defaults to a new directory in /tmp/mpv-txt/ )")
+ap.add_argument("-x", "--cleanup", action="store_true", help="cleanup all intermediate product files before exiting")
+args = ap.parse_args()
 
-file_text = open(in_file,encoding='utf-8').read()+"."
+basename = os.path.basename(os.path.splitext(args.input_file)[0])
+project = args.project_directory if args.project_directory else "/tmp/mpv-txt/"+basename
+os.makedirs(project, exist_ok=True)
+
+file_text = open(args.input_file,encoding='utf-8').read()+"."
 sentences = split_into_sentences(file_text)
-with Pool(THREADS) as pool:
+with Pool(args.threads) as pool:
     fragments = pool.map(text_to_mp4, [(i,s) for i,s in enumerate(sentences)])
 
-print(combine_fragments(fragments))
+result = combine_fragments(fragments)
+print(result)
+
+if args.cleanup:
+    if not os.path.split(result)[0].startswith(project):
+        shutil.rmtree(project)
+    else:
+        for f in os.listdir(project):
+            if f != os.path.split(result)[1]:
+                os.remove(project+"/"+f)

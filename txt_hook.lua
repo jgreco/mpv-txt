@@ -22,8 +22,7 @@ mp.add_hook("on_load", 10, function ()
         return
     end
 
-    _,filename = utils.split_path(url)
-    stat,out = exec({text2media_py, filename, url})
+    stat,out = exec({text2media_py, "--threads", 4,   url})
     mp.set_property("stream-open-filename", out:gsub("\n", ""))
     return
 end)

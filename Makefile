@@ -4,7 +4,7 @@ install:
 	chmod +x ~/.config/mpv/text2media.py
 
 test:
-	mpv moby\ dick\ \(p1\).txt
+	mpv moby\ dick\ \(c1\).txt
 
 test-clean:
-	rm -rf /tmp/mpv-txt/moby\ dick\ \(p1\).txt
+	rm -rf /tmp/mpv-txt/moby\ dick\ \(c1\)
