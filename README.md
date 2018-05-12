@@ -33,7 +33,7 @@ If you quit MPV while *mpv-txt* is in the middle of processing a file, the next 
 - [ ] epub/mobi support (using [Calibre's](https://en.wikipedia.org/wiki/Calibre_(software)) `ebook-convert` to generate a text file)
 - [ ] give attention to subtitle formatting (currently all default settings are used)
 - [ ] add a text substitution feature, allowing users to manipulate TTS pronounciations of difficult words
-- [x] parallel TTS
+- [x] ~~parallel TTS~~
 - [ ] remove python3 dependancy(?)
 - [ ] windows support (low priority, but reasonable pull requests are welcome ;) )
 - [ ] support for 'cloud' TTS services (VERY low priority)
