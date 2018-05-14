@@ -58,6 +58,32 @@ def split_into_sentences(text):
     sentences = [s.strip() for s in sentences]
     return sentences
 
+calibre_install_locations = [
+        "/Applications/calibre.app/Contents/MacOS/ebook-convert",
+        "~/Applications/calibre.app/Contents/MacOS/ebook-convert"]
+#convert ebook to txt:
+#  various formats supported: https://manual.calibre-ebook.com/generated/en/ebook-convert.html
+def ebook_convert(ebook):
+    out = project+"/"+basename+".txt"
+    try:
+        call(["ebook-convert", ebook, out],
+                stdout=open(os.devnull, 'w'))
+    except OSError as e:
+        if e.errno == os.errno.ENOENT:
+            calibre_installs = [f for f in calibre_install_locations if os.path.isfile(f)]
+            if not calibre_installs:
+                sys.exit("text2media.py could not find `ebook-convert`. Make sure you have Calibre (https://calibre-ebook.com/) installed and `ebook-convert` in your path.")
+
+            call([calibre_installs[0], ebook, out],
+                    stdout=open(os.devnull, 'w'))
+        else:
+            raise
+
+    if args.editor_cleanup:
+        call(["xterm", "-e", os.environ.get('EDITOR', 'nano') + " " + out])
+
+    return out
+
 
 #try `say` first because quality is better, fall back on `espeak`
 def say(text,fragment):
@@ -76,8 +102,8 @@ def say(text,fragment):
                     sys.exit("text2media.py requires either `say` (OSX) or `espeak` to be in your PATH.")
                 else:
                     raise
-            else:
-                raise
+        else:
+            raise
 
 
 def text_to_mp4(fragment_text):
@@ -108,7 +134,7 @@ def text_to_mp4(fragment_text):
             raise
 
     srt_file = project+"/tts-"+str(fragment)+".srt"
-    with open(srt_file, "w+") as srt:
+    with open(srt_file, 'w+', encoding='utf-8') as srt:
         srt.write("1\n")
         srt.write("00:00:00.000 --> " + audio_len + "\n")
         srt.write(text)
@@ -136,7 +162,7 @@ def combine_fragments(fragments):
     if os.path.isfile(out):
         return out
 
-    with open(project+"/fragments.txt", "w") as fragment_list:
+    with open(project+"/fragments.txt", 'w', encoding='utf-8') as fragment_list:
         for f in fragments:
             fragment_list.write("file '%s'\n" % f)
     try:
@@ -160,11 +186,15 @@ ap.add_argument("-t", "--threads", type=int, default=1, help="number of threads 
 ap.add_argument("-o", "--output", type=str, help="specify the output path/name")
 ap.add_argument("-p", "--project_directory", type=str, help="override the project directory (defaults to a new directory in /tmp/mpv-txt/ )")
 ap.add_argument("-x", "--cleanup", action="store_true", help="cleanup all intermediate product files before exiting")
+ap.add_argument("-e", "--editor-cleanup", action="store_true", help="launch a text editor to clean up Calibre output")
 args = ap.parse_args()
 
 basename = os.path.basename(os.path.splitext(args.input_file)[0])
 project = args.project_directory if args.project_directory else "/tmp/mpv-txt/"+basename
 os.makedirs(project, exist_ok=True)
+
+if os.path.splitext(args.input_file)[1] != ".txt":
+    args.input_file = ebook_convert(args.input_file)
 
 file_text = open(args.input_file,encoding='utf-8').read()+"."
 sentences = split_into_sentences(file_text)

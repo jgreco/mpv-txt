@@ -3,19 +3,34 @@ local msg = require 'mp.msg'
 
 local opts = {
     threads = 4,
+    supported_extensions=[[
+    ["txt", "epub", "mobi", "azw3", "azw4", "pdf", "docx", "odt"]
+    ]],
+    ebook_convert_options="",
+    editor_cleanup=false,
 }
 (require 'mp.options').read_options(opts)
+opts.supported_extensions = utils.parse_json(opts.supported_extensions)
 
 local function exec(args)
     local ret = utils.subprocess({args = args})
     return ret.status, ret.stdout, ret, ret.killed_by_us
 end
 
+local function findl(str, patterns)
+    for i,p in pairs(patterns) do
+        if str:find("%."..p.."$") then
+            return true
+        end
+    end
+    return false
+end
+
 mp.add_hook("on_load", 10, function ()
     local url = mp.get_property("stream-open-filename", "")
     msg.debug("stream-open-filename: "..url)
-    if (url:find("%.txt$") == nil) then
-        msg.debug("did not find a text file")
+    if (findl(url, opts.supported_extensions) == false) then
+        msg.debug("did not find a supported file")
         return
     end
 
@@ -26,7 +41,10 @@ mp.add_hook("on_load", 10, function ()
         return
     end
 
-    stat,out = exec({text2media_py, "--cleanup", "--threads", opts.threads,   url})
+    command = {text2media_py, "--cleanup", "--threads", opts.threads,   url}
+    if (opts.editor_cleanup) then table.insert(command, "--editor-cleanup") end
+    stat,out = exec(command)
+
     mp.set_property("stream-open-filename", out:gsub("\n", ""))
     return
 end)
