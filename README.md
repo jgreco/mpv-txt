@@ -1,6 +1,6 @@
 # mpv-txt
 A script for the MPV media player that allows you to play text files and ebooks using [text-to-speech (TTS)](https://en.wikipedia.org/wiki/Speech_synthesis).  
-Currently supported TTS engines are `say` (MacOS) and [`espeak`](https://en.wikipedia.org/wiki/ESpeakNG)  Supported formats are txt, epub, mobi, azw3, azw4, pdf, docx, odt, [and many more.](https://manual.calibre-ebook.com/generated/en/ebook-convert.html)
+Currently supported TTS engines are `say` (MacOS) and [`espeak`](https://en.wikipedia.org/wiki/ESpeakNG).  Supported formats are txt, epub, mobi, azw3, azw4, pdf, docx, odt, [and many more.](https://manual.calibre-ebook.com/generated/en/ebook-convert.html)
 
 ![screenshot](mpv-shot0001.jpg)
 
@@ -33,7 +33,7 @@ If you quit MPV while *mpv-txt* is in the middle of processing a file, the next 
 
 ## Plans For Future Enhancement
 *(some of these plans may prove to be mutually exclusive)*
-- [x] epub/mobi support (using [Calibre's](https://en.wikipedia.org/wiki/Calibre_(software)) `ebook-convert` to generate a text file)
+- [x] ~~epub/mobi support (using [Calibre's](https://en.wikipedia.org/wiki/Calibre_(software)) `ebook-convert` to generate a text file)~~
 - [ ] give attention to subtitle formatting (currently all default settings are used)
 - [ ] add a text substitution feature, allowing users to manipulate TTS pronounciations of difficult words
 - [x] ~~parallel TTS~~
