@@ -8,6 +8,7 @@ local opts = {
     ]],
     ebook_convert_options="",
     editor_cleanup=false,
+    gui_progress=true,
 }
 (require 'mp.options').read_options(opts)
 opts.supported_extensions = utils.parse_json(opts.supported_extensions)
@@ -41,8 +42,10 @@ mp.add_hook("on_load", 10, function ()
         return
     end
 
+    -- build text2media command and run
     command = {text2media_py, "--cleanup", "--threads", opts.threads,   url}
     if (opts.editor_cleanup) then table.insert(command, "--editor-cleanup") end
+    if (opts.gui_progress) then table.insert(command, "--gui-progress") end
     stat,out = exec(command)
 
     mp.set_property("stream-open-filename", out:gsub("\n", ""))

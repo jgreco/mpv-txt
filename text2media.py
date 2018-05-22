@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 import re, sys, os, argparse, shutil
 from subprocess import call, check_output
-from multiprocessing import Pool
+from multiprocessing import Pool, Process, Queue
+from queue import Empty
+
+progressQ = Queue()
 
 #shamelessly ripped/adapted from https://stackoverflow.com/questions/4576077/python-split-text-on-sentences/31505798#31505798
 #this could be made a lot better
@@ -112,6 +115,8 @@ def text_to_mp4(fragment_text):
     out=project+"/"+basename+"-"+str(fragment)+".mp4"
 
     if os.path.isfile(out):
+        if args.gui_progressbar:
+            progressQ.put(True)
         return out
 
     #create TTS audio
@@ -153,6 +158,9 @@ def text_to_mp4(fragment_text):
         else:
             raise
 
+    if args.gui_progressbar:
+        progressQ.put(True)
+
     if not os.path.isabs(project):
         return basename+"-"+str(fragment)+".mp4"
     return out
@@ -187,6 +195,7 @@ ap.add_argument("-o", "--output", type=str, help="specify the output path/name")
 ap.add_argument("-p", "--project_directory", type=str, help="override the project directory (defaults to a new directory in /tmp/mpv-txt/ )")
 ap.add_argument("-x", "--cleanup", action="store_true", help="cleanup all intermediate product files before exiting")
 ap.add_argument("-e", "--editor-cleanup", action="store_true", help="launch a text editor to clean up Calibre output")
+ap.add_argument("-g", "--gui-progressbar", action="store_true", help="display a GUI progress bar")
 args = ap.parse_args()
 
 basename = os.path.basename(os.path.splitext(args.input_file)[0])
@@ -198,11 +207,55 @@ if os.path.splitext(args.input_file)[1] != ".txt":
 
 file_text = open(args.input_file,encoding='utf-8').read()+"."
 sentences = split_into_sentences(file_text)
-with Pool(args.threads) as pool:
-    fragments = pool.map(text_to_mp4, [(i,s) for i,s in enumerate(sentences)])
 
-result = combine_fragments(fragments)
-print(result)
+def generate():
+    with Pool(args.threads) as pool:
+        fragments = pool.map(text_to_mp4, [(i,s) for i,s in enumerate(sentences)])
+
+    result = combine_fragments(fragments)
+    if args.gui_progressbar:
+        progressQ.put(False)
+    print(result)
+
+if args.gui_progressbar:
+    from tkinter import *
+    from tkinter import ttk
+
+    root = Tk()
+    root.title("mpv-txt: %s" % basename)
+    root.resizable(False, False)
+
+    txt = Label(root, text="processing fragments (%d of %d)" % (0, len(sentences)))
+    txt.pack()
+
+    pb = ttk.Progressbar(root, orient="horizontal", length=400, maximum=len(sentences), mode="determinate")
+    pb.pack()
+
+    gen = Process(target=generate)
+    gen.start()
+
+    def update():
+        while True:
+            try:
+                m = progressQ.get_nowait()
+                if m:
+                    pb["value"] = pb["value"] + 1
+                    txt["text"] = "processing fragments (%d of %d)" % (pb["value"], len(sentences))
+                    if pb["value"] == len(sentences):
+                        txt["text"] = "combining fragments..."
+                else:
+                    root.quit()
+                    root.update()
+            except Empty:
+                break
+            except:
+                raise
+        root.after(100, update)
+
+    root.after(0, update)
+    root.mainloop()
+else:
+    generate()
 
 if args.cleanup:
     if not os.path.split(result)[0].startswith(project):
