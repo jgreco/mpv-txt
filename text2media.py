@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, sys, os, argparse, shutil
+import re, sys, os, argparse, shutil, errno
 from subprocess import call, check_output
 from multiprocessing import Pool, Process, Queue
 from queue import Empty
@@ -72,7 +72,7 @@ def ebook_convert(ebook):
         call(["ebook-convert", ebook, out],
                 stdout=open(os.devnull, 'w'))
     except OSError as e:
-        if e.errno == os.errno.ENOENT:
+        if e.errno == errno.ENOENT:
             calibre_installs = [f for f in calibre_install_locations if os.path.isfile(f)]
             if not calibre_installs:
                 sys.exit("text2media.py could not find `ebook-convert`. Make sure you have Calibre (https://calibre-ebook.com/) installed and `ebook-convert` in your path.")
@@ -224,6 +224,7 @@ if args.gui_progressbar:
     root = Tk()
     root.title("mpv-txt: %s" % basename)
     root.resizable(False, False)
+    root.attributes("-topmost", True)
 
     txt = Label(root, text="processing fragments (%d of %d)" % (0, len(sentences)))
     txt.pack()
